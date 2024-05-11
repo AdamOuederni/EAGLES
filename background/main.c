@@ -3,13 +3,14 @@
 int main( int argc, char* args[] )
 {
 	int x,y,x1,y1,i,difficulty=0,share=0,speed=3,once=0;
-	int level=0, delayonce=0, delayonce1=0;
+	int level=-1, delayonce=0, delayonce1=0;
 	Uint32 current=0, delay_start_time, current1, delay_start_time1;		//delay on button selection
 	int done=0;
 	Mix_Music *easy, *medium, *hard;
 	SDL_Surface *ecran;
-	image bg, bg2,bg3,bg4,bg5,bg6, desert,desert1;
+	image bg, bg2,bg3,bg4,bg5,bg6, desert,desert1, highscr;
 	SDL_Event event;
+	score s,s1;
 	
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER) == -1) {
 		printf("Could not initialize SDL: %s.\n", SDL_GetError());
@@ -27,26 +28,36 @@ int main( int argc, char* args[] )
 	init_bg2(&bg6,"./Media/bg3.png",1000,5596);
 	init_img(&desert,"./Media/desert.png",0,HEIGHT-70,0,0,0,0,70,75);
 	init_img(&desert1,"./Media/desert.png",WIDTH/2,HEIGHT-70,0,0,0,0,70,75);
+	init_img(&highscr,"./Media/highscore.png",(WIDTH/2)-120,(HEIGHT/2)-50,0,0,100,239,(HEIGHT/2)-50,(WIDTH/2)-120); // mettre au centre
 	//audio initialisation
 	initialise_audio();
 	easy = Mix_LoadMUS("./Media/easy.wav");
 	medium= Mix_LoadMUS("./Media/medium.wav");
 	hard= Mix_LoadMUS("./Media/hard.wav");
-
+	TTF_Init();
+	init_score(&s);
+	//init_score(&s1);
+	strcpy(s.name,"joueur");
 	//game loop
 	while(done!=1) {
-		//Display	
+		//Display	 
 		switch(level){
+			case -1:
+				afficher(highscr,ecran);	
+			break;
 			case 0:
 				if (share==1){
 					afficher(bg,ecran);		
 					afficher(bg2,ecran);	
 					afficher(desert,ecran);
 					afficher(desert1,ecran);
+					displayscore(s,ecran);
 				}
-				else
+				else{
 					afficher(bg,ecran);
 					afficher(desert,ecran);
+					displayscore(s,ecran);
+				}
 			break;
 			case 1:
 				if (share==1){
@@ -54,10 +65,13 @@ int main( int argc, char* args[] )
 					afficher(bg4,ecran);	
 					afficher(desert,ecran);
 					afficher(desert1,ecran);
+					displayscore(s,ecran);
 				}
-				else
+				else{
 					afficher(bg3,ecran);
 					afficher(desert,ecran);
+					displayscore(s,ecran);
+				}
 			break;
 			case 2:
 				if (share==1){
@@ -65,10 +79,13 @@ int main( int argc, char* args[] )
 					afficher(bg6,ecran);
 					afficher(desert,ecran);	
 					afficher(desert1,ecran);
+					displayscore(s,ecran);
 				}
-				else
+				else{
 					afficher(bg5,ecran);
 					afficher(desert,ecran);
+					displayscore(s,ecran);
+				}
 			break;
 			
 		}
@@ -76,8 +93,20 @@ int main( int argc, char* args[] )
 		//events
 		while(SDL_PollEvent(&event)) {
 			switch(event.type){
+				case SDL_MOUSEBUTTONDOWN :
+					if(level==-1){
+						if(PointInRect(event.motion.x, event.motion.y, highscr.posscreen)){
+							s1 = get_highest_score();
+							printf("%d %s %u\n",s1.value,s1.name,s1.time);
+							displayscore(s1,ecran);
+						}
+					}
+					break;
 				case SDL_KEYDOWN :
 					switch(event.key.keysym.sym){
+						case SDLK_KP1 :
+							level=0;
+							break;
 							case SDLK_LCTRL :
 							speed=6;
 							break;
@@ -208,6 +237,8 @@ int main( int argc, char* args[] )
 							desert.posscreen.x=0;
 							delayonce=0;
 					}
+					if(bg.cam.x>=1617)
+						level=1;
 				}
 				if(level == 1) {
 					scroll(&bg3,x,y,speed);
@@ -224,26 +255,30 @@ int main( int argc, char* args[] )
 							delayonce=0;
 					}
 				}
-				if(level == 2) {
-					scroll(&bg5,x,y,speed);
-					animer(&desert, 6);
-					if(desert.posscreen.x< WIDTH)
-						desert.posscreen.x+=15;
-					else if (delayonce == 0){
-						current = SDL_GetTicks();
-						delayonce = 1;
-						delay_start_time = current;
-					}
-					else if(delay(3000,delay_start_time)==0){
-							desert.posscreen.x=0;
-							delayonce=0;
-					}
+				if (level == 2) {
+					 scroll(&bg5, x, y, speed);
+					 animer(&desert, 6);
+					 if (desert.posscreen.x < WIDTH)
+						  desert.posscreen.x += 15;
+					 else if (delayonce == 0) {
+						  current = SDL_GetTicks();
+						  delayonce = 1;
+						  delay_start_time = current;
+					 } else if (delay(3000, delay_start_time) == 0) {
+						  desert.posscreen.x = 0;
+						  delayonce = 0;
+					 }
+					 if (bg5.cam.x >= 4305) {
+					 	  s.time=SDL_GetTicks();
+						  save_score(&s);
+						  done = 1; // Set done to true to exit the loop
+					 }
 				}
 			break;
 			
 			case 1 :
 				if(level == 0){	
-					scroll(&bg,x,y,speed);
+					scroll1(&bg,x,y,speed);
 					scroll(&bg2,x1,y1,speed);
 					animer(&desert, 6);
 					animer1(&desert1, 6);
@@ -271,7 +306,7 @@ int main( int argc, char* args[] )
 					}
 				}
 				if(level == 1){	
-					scroll(&bg3,x,y,speed);
+					scroll1(&bg3,x,y,speed);
 					scroll(&bg4,x1,y1,speed);
 					animer(&desert, 6);
 					animer1(&desert1, 6);
@@ -299,7 +334,7 @@ int main( int argc, char* args[] )
 					}
 				}
 				if(level == 2){	
-					scroll(&bg5,x,y,speed);
+					scroll1(&bg5,x,y,speed);
 					scroll(&bg6,x1,y1,speed);
 					animer(&desert, 6);
 					animer1(&desert1, 6);
@@ -325,9 +360,16 @@ int main( int argc, char* args[] )
 							desert1.posscreen.x=WIDTH/2;
 							delayonce1=0;
 					}
+					if (bg6.cam.x >= 4305) {
+					 	s.time=SDL_GetTicks();
+						save_score(&s);
+						done = 1; // Set done to true to exit the loop
+					 }
 				}
+				
 			break;
 		}
+		s.value++;
 		SDL_Flip(ecran);
 	}
 	SDL_FreeSurface(ecran);
@@ -342,10 +384,12 @@ int main( int argc, char* args[] )
 	Mix_FreeMusic(easy);
 	Mix_FreeMusic(medium);
 	Mix_FreeMusic(hard);
+	release_text(&s.txt);
 	Mix_CloseAudio();
 	SDL_Quit();
 	return 0;
 }
+
 
 
 
